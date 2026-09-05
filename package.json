@@ -1,0 +1,53 @@
+{
+  "name": "worktree-autosync",
+  "displayName": "Worktree Autosync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Keeps git worktree folders in sync with the VS Code workspace.",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "oxlint",
+    "fmt": "oxfmt src test esbuild.mjs",
+    "build": "node esbuild.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Worktree Autosync",
+      "properties": {
+        "worktreeAutoSync.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run worktree sync polling."
+        },
+        "worktreeAutoSync.pollIntervalMs": {
+          "type": "number",
+          "default": 2500,
+          "description": "Polling interval in milliseconds. Values below 500 are clamped to 500."
+        },
+        "worktreeAutoSync.roots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "When empty, every worktree of the main repository is synced. Otherwise only worktrees strictly below one of these paths (relative to the main repository or absolute) are synced."
+        }
+      }
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  }
+}
