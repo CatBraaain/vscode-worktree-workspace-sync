@@ -17,22 +17,22 @@ describe("extension manifest", () => {
     expect(pkg.main).toBe("./dist/extension.js");
   });
 
-  it("contributes worktreeAutoSync settings with the spec defaults", () => {
+  it("contributes worktreeWorkspaceSync settings with the spec defaults", () => {
     const properties = (
       pkg.contributes as unknown as {
         configuration: { properties: Record<string, Record<string, unknown>> };
       }
     ).configuration.properties;
 
-    expect(properties["worktreeAutoSync.enabled"]).toMatchObject({
+    expect(properties["worktreeWorkspaceSync.enabled"]).toMatchObject({
       type: "boolean",
       default: true,
     });
-    expect(properties["worktreeAutoSync.pollIntervalMs"]).toMatchObject({
+    expect(properties["worktreeWorkspaceSync.pollIntervalMs"]).toMatchObject({
       type: "number",
       default: 2500,
     });
-    expect(properties["worktreeAutoSync.roots"]).toMatchObject({
+    expect(properties["worktreeWorkspaceSync.roots"]).toMatchObject({
       type: "array",
       default: [],
     });

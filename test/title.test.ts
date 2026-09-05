@@ -16,7 +16,7 @@ describe("title bar", () => {
 
   it("writes the folder-0 name to window.title at workspace scope when untitled", async () => {
     const api = new FakeVscode([MAIN]);
-    api.config.worktreeAutoSync = {};
+    api.config.worktreeWorkspaceSync = {};
     startExtension(api, createFakeGit([wt(MAIN, { branch: "main" })]).exec);
 
     await vi.advanceTimersByTimeAsync(0);
@@ -36,7 +36,7 @@ describe("title bar", () => {
 
   it("does not write window.title for a saved workspace file", async () => {
     const api = new FakeVscode([MAIN], `${MAIN}/my.code-workspace`);
-    api.config.worktreeAutoSync = {};
+    api.config.worktreeWorkspaceSync = {};
     startExtension(api, createFakeGit([wt(MAIN, { branch: "main" })]).exec);
 
     await vi.advanceTimersByTimeAsync(2500);
@@ -46,7 +46,7 @@ describe("title bar", () => {
   // SPEC タイトルバー (書き込み失敗時は何もせず通知もしない)。
   it("ignores a failed title write and keeps syncing", async () => {
     const api = new FakeVscode([MAIN]);
-    api.config.worktreeAutoSync = {};
+    api.config.worktreeWorkspaceSync = {};
     api.failTitleUpdate = true;
     const git = createFakeGit([wt(MAIN, { branch: "main" }), wt(FEAT, { branch: "feat-x" })]);
     startExtension(api, git.exec);

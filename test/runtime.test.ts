@@ -14,7 +14,7 @@ function setup(
   config: Record<string, unknown> = {},
 ) {
   const api = new FakeVscode(folderPaths);
-  api.config.worktreeAutoSync = { ...config };
+  api.config.worktreeWorkspaceSync = { ...config };
   const git = createFakeGit(entries);
   const handle = startExtension(api, git.exec);
   return { api, git, handle };
@@ -80,7 +80,7 @@ describe("enabled setting", () => {
     expect(git.calls).toHaveLength(0);
     expect(api.added).toEqual([]);
 
-    api.config.worktreeAutoSync.enabled = true;
+    api.config.worktreeWorkspaceSync.enabled = true;
     await vi.advanceTimersByTimeAsync(2500);
     expect(git.calls).toHaveLength(1);
     expect(api.added).toEqual([{ path: FEAT, name: "feat-x  ·  agent" }]);
@@ -107,7 +107,7 @@ describe("configuration reload", () => {
 
     // Loosen the restriction: the remaining worktree is added on the next
     // poll, the already-added folder is kept.
-    api.config.worktreeAutoSync.roots = [];
+    api.config.worktreeWorkspaceSync.roots = [];
     await vi.advanceTimersByTimeAsync(2500);
     expect(api.added).toEqual([
       { path: "/repo/wt/plain", name: "plain" },
@@ -115,7 +115,7 @@ describe("configuration reload", () => {
     ]);
 
     // Tighten the restriction again: the out-of-roots folder is removed.
-    api.config.worktreeAutoSync.roots = ["/repo/wt"];
+    api.config.worktreeWorkspaceSync.roots = ["/repo/wt"];
     await vi.advanceTimersByTimeAsync(2500);
     expect(api.removed).toEqual([FEAT]);
     expect(api.folderPaths).toEqual([MAIN, "/repo/wt/plain"]);
@@ -200,7 +200,7 @@ describe("worktree removal", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
 
-    api.config.worktreeAutoSync.roots = ["/nowhere"];
+    api.config.worktreeWorkspaceSync.roots = ["/nowhere"];
     await vi.advanceTimersByTimeAsync(2500);
 
     expect(api.removed).toEqual([FEAT]);

@@ -1,4 +1,4 @@
-# Worktree Autosync 仕様
+# Worktree Workspace Sync 仕様
 
 
 ## 対象と適用範囲
@@ -8,7 +8,7 @@
 
 ## 設定
 
-`worktreeAutoSync` セクション:
+`worktreeWorkspaceSync` セクション:
 
 | キー | 型 | デフォルト | 振る舞い |
 |---|---|---|---|

@@ -1,6 +1,6 @@
 {
-  "name": "worktree-autosync",
-  "displayName": "Worktree Autosync",
+  "name": "worktree-workspace-sync",
+  "displayName": "Worktree Workspace Sync",
   "version": "0.1.0",
   "private": true,
   "description": "Keeps git worktree folders in sync with the VS Code workspace.",
@@ -21,19 +21,19 @@
   },
   "contributes": {
     "configuration": {
-      "title": "Worktree Autosync",
+      "title": "Worktree Workspace Sync",
       "properties": {
-        "worktreeAutoSync.enabled": {
+        "worktreeWorkspaceSync.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Run worktree sync polling."
         },
-        "worktreeAutoSync.pollIntervalMs": {
+        "worktreeWorkspaceSync.pollIntervalMs": {
           "type": "number",
           "default": 2500,
           "description": "Polling interval in milliseconds. Values below 500 are clamped to 500."
         },
-        "worktreeAutoSync.roots": {
+        "worktreeWorkspaceSync.roots": {
           "type": "array",
           "items": {
             "type": "string"

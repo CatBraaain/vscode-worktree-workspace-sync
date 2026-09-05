@@ -18,7 +18,7 @@ describe("polling", () => {
 
   it("polls no faster than 500ms even when pollIntervalMs is lower", async () => {
     const api = new FakeVscode([MAIN]);
-    api.config.worktreeAutoSync = { pollIntervalMs: 100 };
+    api.config.worktreeWorkspaceSync = { pollIntervalMs: 100 };
     const git = createFakeGit([mainEntry, featEntry]);
     startExtension(api, git.exec);
 
@@ -36,7 +36,7 @@ describe("polling", () => {
 
   it("uses the configured interval when it is at least 500ms", async () => {
     const api = new FakeVscode([MAIN]);
-    api.config.worktreeAutoSync = { pollIntervalMs: 2500 };
+    api.config.worktreeWorkspaceSync = { pollIntervalMs: 2500 };
     const git = createFakeGit([mainEntry, featEntry]);
     startExtension(api, git.exec);
 
@@ -54,12 +54,12 @@ describe("polling", () => {
 
   it("reflects a pollIntervalMs change from the next poll on", async () => {
     const api = new FakeVscode([MAIN]);
-    api.config.worktreeAutoSync = { pollIntervalMs: 100 };
+    api.config.worktreeWorkspaceSync = { pollIntervalMs: 100 };
     const git = createFakeGit([mainEntry, featEntry]);
     startExtension(api, git.exec);
 
     await vi.advanceTimersByTimeAsync(0);
-    api.config.worktreeAutoSync.pollIntervalMs = 1000;
+    api.config.worktreeWorkspaceSync.pollIntervalMs = 1000;
 
     await vi.advanceTimersByTimeAsync(500);
     expect(git.calls).toHaveLength(2);

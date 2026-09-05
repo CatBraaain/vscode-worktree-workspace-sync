@@ -64,7 +64,7 @@ export class AutoSyncEngine {
   }
 
   private readSettings(): SyncSettings {
-    const config = this.deps.vscode.workspace.getConfiguration("worktreeAutoSync");
+    const config = this.deps.vscode.workspace.getConfiguration("worktreeWorkspaceSync");
     return {
       enabled: config.get("enabled", true),
       pollIntervalMs: effectivePollIntervalMs(config.get("pollIntervalMs", 2500)),
