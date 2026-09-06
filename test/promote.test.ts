@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { promoteToUntitledWorkspace } from "../src/promote";
-import { FakeVscode } from "./helpers/fake";
+import { FakeVscode, savedWorkspace } from "./helpers/fake";
 
 const MAIN = "/repo";
 
@@ -21,7 +21,7 @@ describe("promoteToUntitledWorkspace", () => {
   });
 
   it("does nothing for a saved workspace file", async () => {
-    const api = new FakeVscode([MAIN], "/somewhere/main.code-workspace");
+    const api = new FakeVscode([MAIN], savedWorkspace("/somewhere/main.code-workspace"));
     await promoteToUntitledWorkspace(api);
     expect(api.added).toEqual([]);
   });

@@ -22,8 +22,9 @@ vi.mock("vscode", () => {
   const state = {
     folders: [] as FakeFolder[],
     added: [] as { path: string; name: string | undefined }[],
-    titleUpdates: [] as { section: string; key: string; value: unknown }[],
+    titleUpdates: [] as { section: string; key: string; value: unknown; target: unknown }[],
     listeners: new Set<() => void>(),
+    workspaceFile: undefined as { scheme: string; fsPath: string } | undefined,
   };
   return {
     Uri: { file: (fsPath: string) => ({ fsPath }) },
@@ -32,11 +33,13 @@ vi.mock("vscode", () => {
       get workspaceFolders() {
         return state.folders;
       },
-      workspaceFile: undefined,
+      get workspaceFile() {
+        return state.workspaceFile;
+      },
       getConfiguration: (section: string) => ({
         get: (_key: string, defaultValue: unknown) => defaultValue,
-        update: (key: string, value: unknown) => {
-          state.titleUpdates.push({ section, key, value });
+        update: (key: string, value: unknown, target: unknown) => {
+          state.titleUpdates.push({ section, key, value, target });
           return Promise.resolve();
         },
       }),
@@ -79,8 +82,9 @@ import { activate } from "../src/extension";
 type MockState = {
   folders: { uri: { fsPath: string }; name: string }[];
   added: { path: string; name: string | undefined }[];
-  titleUpdates: { section: string; key: string; value: unknown }[];
+  titleUpdates: { section: string; key: string; value: unknown; target: unknown }[];
   listeners: Set<() => void>;
+  workspaceFile: { scheme: string; fsPath: string } | undefined;
 };
 
 function mockState(): MockState {
@@ -101,6 +105,7 @@ describe("activate wiring", () => {
     state.added.length = 0;
     state.titleUpdates.length = 0;
     state.listeners.clear();
+    state.workspaceFile = undefined;
 
     tmp = await mkdtemp(path.join(tmpdir(), "wtas-"));
     repo = path.join(tmp, "main");
@@ -121,15 +126,17 @@ describe("activate wiring", () => {
 
   it("starts the sync engine and applies the untitled-workspace title", async () => {
     const state = mockState();
+    // Untitled workspace session: as reported after the startup
+    // transition, so the title write is allowed and the transition
+    // itself does not run again.
+    state.workspaceFile = { scheme: "untitled", fsPath: "/1555503116870" };
     state.folders.push({ uri: { fsPath: repo }, name: path.basename(repo) });
     subscriptions = [];
 
     activate({ subscriptions } as unknown as vscode.ExtensionContext);
 
-    await vi.waitFor(() => expect(state.added).toHaveLength(2));
-    // added[0] is the startup transition re-applying folder 0 unchanged.
-    expect(state.added[0]).toEqual({ path: repo, name: path.basename(repo) });
-    expect(state.added[1]).toEqual({ path: worktree, name: "feat-x" });
+    await vi.waitFor(() => expect(state.added).toHaveLength(1));
+    expect(state.added[0]).toEqual({ path: worktree, name: "feat-x" });
     expect(state.folders.map((folder) => folder.uri.fsPath)).toEqual([repo, worktree]);
     expect(state.titleUpdates).toEqual([
       {
@@ -139,6 +146,7 @@ describe("activate wiring", () => {
           "${dirty}${activeEditorShort}${separator}" +
           path.basename(repo) +
           "${separator}${profileName}${separator}${appName}",
+        target: 2,
       },
     ]);
   });

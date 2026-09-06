@@ -45,7 +45,7 @@
 
 ## タイトルバー
 
-- ワークスペースを保存済みファイルで開いていない (untitled) 場合、タイトルバーのテンプレート (`window.title` の既定値) は VS Code では次になっている。
+- ワークスペースを保存済みファイルで開いている場合と、単一フォルダとして開いている場合を除き (untitled ワークスペース)、タイトルバーのテンプレート (`window.title` の既定値) は VS Code では次になっている。
 
   ```text
   ${dirty}${activeEditorShort}${separator}${rootName}${separator}${profileName}${separator}${appName}
@@ -59,5 +59,7 @@
 
 - 例: アクティブエディタで `title.ts` を開いているとき、既定では `title.ts - Untitled (Workspace) - Visual Studio Code` と表示されるところを、`title.ts - vscode-worktree-workspace-sync - Visual Studio Code` と表示する。
 - 変更は `window.title` 設定へのワークスペーススコープの書き込みによる。反映にウィンドウ再読み込みを要しない。
+- 書き込み先は untitled ワークスペースのワークスペース設定であり、リポジトリ内にファイルを作成・変更しない。
+- 単一フォルダとして開いている間は書き込まない。起動時のワークスペース遷移により untitled ワークスペースになった後のセッションで書き込む。
 - 保存済みワークスペースファイルで開いている場合は書き込まない。
 - 書き込みに失敗したときは、何もせず通知もしない。

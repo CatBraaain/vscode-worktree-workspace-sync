@@ -5,6 +5,7 @@
  */
 
 export interface UriLike {
+  readonly scheme?: string;
   readonly fsPath: string;
 }
 

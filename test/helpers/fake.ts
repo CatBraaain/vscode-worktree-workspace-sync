@@ -16,6 +16,16 @@ import type { ExecFile, WorktreeEntry } from "../../src/porcelain";
 // Mirrors the numeric value of vscode.ConfigurationTarget.Workspace.
 export const WORKSPACE_TARGET = 2;
 
+/** A workspaceFile URI as VS Code reports it for an untitled workspace. */
+export function untitledWorkspace(): UriLike {
+  return { scheme: "untitled", fsPath: "/1555503116870" };
+}
+
+/** A workspaceFile URI as VS Code reports it for a saved workspace file. */
+export function savedWorkspace(fsPath: string): UriLike {
+  return { scheme: "file", fsPath };
+}
+
 interface FakeTab extends TabLike {
   readonly uriPath: string;
 }
@@ -106,15 +116,14 @@ export class FakeVscode implements VscodeLike {
     },
   };
 
-  constructor(folderPaths: string[] | undefined, workspaceFile?: string) {
+  constructor(folderPaths: string[] | undefined, workspaceFile?: UriLike) {
     this.workspace.workspaceFolders.push(
       ...(folderPaths ?? []).map((p) => ({
-        uri: { fsPath: p },
+        uri: { scheme: "file", fsPath: p },
         name: path.basename(p),
       })),
     );
-    this.workspace.workspaceFile =
-      workspaceFile === undefined ? undefined : { fsPath: workspaceFile };
+    this.workspace.workspaceFile = workspaceFile;
   }
 
   get folderPaths(): string[] {
