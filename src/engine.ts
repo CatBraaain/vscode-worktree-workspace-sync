@@ -13,6 +13,7 @@ import {
   folderNameFor,
   isUnderOrEqual,
 } from "./core";
+import { updateFoldersAndWait } from "./folders";
 import { listWorktrees, type ExecFile, type WorktreeEntry } from "./porcelain";
 
 interface SyncSettings {
@@ -26,8 +27,6 @@ export interface EngineDeps {
   readonly mainRepoPath: string;
   readonly execFile: ExecFile;
 }
-
-const APPLY_TIMEOUT_MS = 3000;
 
 export class AutoSyncEngine {
   private readonly deps: EngineDeps;
@@ -133,7 +132,7 @@ export class AutoSyncEngine {
         continue;
       }
       await this.closeTabsUnder(folderPath);
-      await this.updateFoldersAndWait(index, 1);
+      await updateFoldersAndWait(this.deps.vscode, index, 1);
       if (this.indexOfFolder(folderPath) === -1) {
         this.managed.delete(folderPath);
       }
@@ -154,7 +153,7 @@ export class AutoSyncEngine {
     for (const entry of additions) {
       this.managed.add(path.resolve(entry.path));
     }
-    await this.updateFoldersAndWait(start, 0, ...folders);
+    await updateFoldersAndWait(this.deps.vscode, start, 0, ...folders);
   }
 
   private indexOfFolder(folderPath: string): number {
@@ -176,40 +175,5 @@ export class AutoSyncEngine {
     if (tabsToClose.length > 0) {
       await this.deps.vscode.window.tabGroups.close(tabsToClose, true);
     }
-  }
-
-  /**
-   * updateWorkspaceFolders is asynchronous: the workspace folders list is
-   * updated only after onDidChangeWorkspaceFolders fires. Wait for that
-   * event (with a timeout fallback) so consecutive edits see fresh
-   * indices.
-   */
-  private updateFoldersAndWait(
-    start: number,
-    deleteCount: number | undefined,
-    ...folders: ReadonlyArray<{ uri: { fsPath: string }; name?: string }>
-  ): Promise<void> {
-    return new Promise((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        subscription.dispose();
-        clearTimeout(fallback);
-        resolve();
-      };
-      const subscription = this.deps.vscode.workspace.onDidChangeWorkspaceFolders(done);
-      const fallback = setTimeout(done, APPLY_TIMEOUT_MS);
-      const accepted = this.deps.vscode.workspace.updateWorkspaceFolders(
-        start,
-        deleteCount,
-        ...folders,
-      );
-      if (!accepted) {
-        done();
-      }
-    });
   }
 }
