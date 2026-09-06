@@ -130,7 +130,14 @@ describe("activate wiring", () => {
     expect(state.added[0]).toEqual({ path: worktree, name: "feat-x" });
     expect(state.folders.map((folder) => folder.uri.fsPath)).toEqual([repo, worktree]);
     expect(state.titleUpdates).toEqual([
-      { section: "window", key: "title", value: path.basename(repo) },
+      {
+        section: "window",
+        key: "title",
+        value:
+          "${dirty}${activeEditorShort}${separator}" +
+          path.basename(repo) +
+          "${separator}${profileName}${separator}${appName}",
+      },
     ]);
   });
 });

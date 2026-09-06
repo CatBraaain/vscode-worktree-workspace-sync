@@ -24,7 +24,8 @@ describe("title bar", () => {
       {
         section: "window",
         key: "title",
-        value: "myrepo",
+        value:
+          "${dirty}${activeEditorShort}${separator}myrepo${separator}${profileName}${separator}${appName}",
         target: WORKSPACE_TARGET,
       },
     ]);

@@ -37,7 +37,19 @@
 
 ## タイトルバー
 
-- ワークスペースを保存済みファイルで開いていない (untitled) 場合、タイトルバーは "Untitled (Workspace)" の代わりに主リポジトリのフォルダ名を表示する。
-- 実現は `window.title` 設定へのワークスペーススコープの書き込みによる。反映にウィンドウ再読み込みを要しない。
+- ワークスペースを保存済みファイルで開いていない (untitled) 場合、タイトルバーのテンプレート (`window.title` の既定値) は VS Code では次になっている。
+
+  ```text
+  ${dirty}${activeEditorShort}${separator}${rootName}${separator}${profileName}${separator}${appName}
+  ```
+
+  本拡張はこれを次に変更する。`${rootName}` の代わりに主リポジトリのフォルダ名を埋め込むもので、他の変数はそのまま残る。
+
+  ```text
+  ${dirty}${activeEditorShort}${separator}<主リポジトリのフォルダ名>${separator}${profileName}${separator}${appName}
+  ```
+
+- 例: アクティブエディタで `title.ts` を開いているとき、既定では `title.ts - Untitled (Workspace) - Visual Studio Code` と表示されるところを、`title.ts - vscode-worktree-workspace-sync - Visual Studio Code` と表示する。
+- 変更は `window.title` 設定へのワークスペーススコープの書き込みによる。反映にウィンドウ再読み込みを要しない。
 - 保存済みワークスペースファイルで開いている場合は書き込まない。
 - 書き込みに失敗したときは、何もせず通知もしない。

@@ -1,7 +1,8 @@
 /**
- * Title bar behavior for untitled workspaces: write the main repository
- * folder name into `window.title` at workspace scope, instead of the
- * default "Untitled (Workspace)". Saved workspace files are left alone.
+ * Title bar behavior for untitled workspaces: write the default
+ * `window.title` template with ${rootName} replaced by the main repository
+ * folder name, so untitled windows show the folder name instead of
+ * "Untitled (Workspace)". Saved workspace files are left alone.
  */
 
 import path from "node:path";
@@ -16,7 +17,11 @@ export async function applyUntitledWindowTitle(vscode: VscodeLike): Promise<void
     return;
   }
   const folderName = path.basename(path.resolve(folders[0].uri.fsPath));
+  const title =
+    "${dirty}${activeEditorShort}${separator}" +
+    folderName +
+    "${separator}${profileName}${separator}${appName}";
   await vscode.workspace
     .getConfiguration("window")
-    .update("title", folderName, vscode.configurationTarget.Workspace);
+    .update("title", title, vscode.configurationTarget.Workspace);
 }
