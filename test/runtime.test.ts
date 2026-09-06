@@ -8,7 +8,7 @@ const FEAT = "/repo/.claude/worktrees/feat-x";
 const mainEntry = wt(MAIN, { branch: "main" });
 const featEntry = wt(FEAT, { branch: "feat-x" });
 
-function setup(
+async function setup(
   folderPaths: string[] | undefined,
   entries: readonly WorktreeEntry[],
   config: Record<string, unknown> = {},
@@ -16,7 +16,7 @@ function setup(
   const api = new FakeVscode(folderPaths);
   api.config.worktreeWorkspaceSync = { ...config };
   const git = createFakeGit(entries);
-  const handle = startExtension(api, git.exec);
+  const handle = await startExtension(api, git.exec);
   return { api, git, handle };
 }
 
@@ -32,7 +32,7 @@ describe("activation gate", () => {
 
   it("does nothing without workspace folders", async () => {
     for (const folders of [undefined, []]) {
-      const { api, git } = setup(folders, [mainEntry, featEntry]);
+      const { api, git } = await setup(folders, [mainEntry, featEntry]);
       await vi.advanceTimersByTimeAsync(10_000);
       expect(git.calls).toHaveLength(0);
       expect(api.added).toEqual([]);
@@ -52,7 +52,7 @@ describe("main repository selection", () => {
   });
 
   it("always polls git in workspace folder 0", async () => {
-    const { api, git } = setup([MAIN, "/user/dir"], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN, "/user/dir"], [mainEntry, featEntry]);
     await vi.advanceTimersByTimeAsync(0);
     expect(api.added).toEqual([{ path: FEAT, name: "feat-x  ·  agent" }]);
 
@@ -72,7 +72,7 @@ describe("enabled setting", () => {
   });
 
   it("does not sync while disabled, then syncs once enabled", async () => {
-    const { api, git } = setup([MAIN], [mainEntry, featEntry], {
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry], {
       enabled: false,
     });
 
@@ -98,18 +98,23 @@ describe("configuration reload", () => {
 
   it("applies a roots change from the next poll on", async () => {
     const plain = wt("/repo/wt/plain", { branch: "plain" });
-    const { api, git } = setup([MAIN], [mainEntry, featEntry, plain], {
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry, plain], {
       roots: ["/repo/wt"],
     });
 
     await vi.advanceTimersByTimeAsync(0);
-    expect(api.added).toEqual([{ path: "/repo/wt/plain", name: "plain" }]);
+    // The first added entry is the startup transition re-applying folder 0.
+    expect(api.added).toEqual([
+      { path: MAIN, name: "repo" },
+      { path: "/repo/wt/plain", name: "plain" },
+    ]);
 
     // Loosen the restriction: the remaining worktree is added on the next
     // poll, the already-added folder is kept.
     api.config.worktreeWorkspaceSync.roots = [];
     await vi.advanceTimersByTimeAsync(2500);
     expect(api.added).toEqual([
+      { path: MAIN, name: "repo" },
       { path: "/repo/wt/plain", name: "plain" },
       { path: FEAT, name: "feat-x  ·  agent" },
     ]);
@@ -117,7 +122,8 @@ describe("configuration reload", () => {
     // Tighten the restriction again: the out-of-roots folder is removed.
     api.config.worktreeWorkspaceSync.roots = ["/repo/wt"];
     await vi.advanceTimersByTimeAsync(2500);
-    expect(api.removed).toEqual([FEAT]);
+    // MAIN in removed[0] is the startup transition re-applying folder 0.
+    expect(api.removed).toEqual([MAIN, FEAT]);
     expect(api.folderPaths).toEqual([MAIN, "/repo/wt/plain"]);
     expect(git.calls.length).toBeGreaterThan(1);
   });
@@ -139,10 +145,11 @@ describe("worktree addition", () => {
       wt("/repo/wt/det", { head: "abcdef1234567890" }),
       featEntry,
     ];
-    const { api, git } = setup([MAIN], entries);
+    const { api, git } = await setup([MAIN], entries);
 
     await vi.advanceTimersByTimeAsync(0);
     expect(api.added).toEqual([
+      { path: MAIN, name: "repo" },
       { path: "/repo/wt/topic", name: "topic" },
       { path: "/repo/wt/det", name: "(detached abcdef1)" },
       { path: FEAT, name: "feat-x  ·  agent" },
@@ -164,7 +171,7 @@ describe("worktree removal", () => {
   });
 
   it("removes the folder when the worktree disappears from the list, closing tabs under it", async () => {
-    const { api, git } = setup([MAIN], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry]);
     api.openTabs(`${FEAT}/src/a.ts`, `${MAIN}/README.md`);
     await vi.advanceTimersByTimeAsync(0);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
@@ -172,14 +179,15 @@ describe("worktree removal", () => {
     git.setEntries([mainEntry]);
     await vi.advanceTimersByTimeAsync(2500);
 
-    expect(api.removed).toEqual([FEAT]);
+    // MAIN in removed[0] is the startup transition re-applying folder 0.
+    expect(api.removed).toEqual([MAIN, FEAT]);
     expect(api.closedTabs).toEqual([`${FEAT}/src/a.ts`]);
     expect(api.openTabPaths).toEqual([`${MAIN}/README.md`]);
     expect(api.folderPaths).toEqual([MAIN]);
   });
 
   it("removes the folder when the worktree entry becomes prunable", async () => {
-    const { api, git } = setup([MAIN], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry]);
     await vi.advanceTimersByTimeAsync(0);
 
     git.setEntries([
@@ -191,19 +199,19 @@ describe("worktree removal", () => {
     ]);
     await vi.advanceTimersByTimeAsync(2500);
 
-    expect(api.removed).toEqual([FEAT]);
+    expect(api.removed).toEqual([MAIN, FEAT]);
     expect(api.folderPaths).toEqual([MAIN]);
   });
 
   it("removes the folder when roots filtering makes the worktree a non-target", async () => {
-    const { api } = setup([MAIN], [mainEntry, featEntry]);
+    const { api } = await setup([MAIN], [mainEntry, featEntry]);
     await vi.advanceTimersByTimeAsync(0);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
 
     api.config.worktreeWorkspaceSync.roots = ["/nowhere"];
     await vi.advanceTimersByTimeAsync(2500);
 
-    expect(api.removed).toEqual([FEAT]);
+    expect(api.removed).toEqual([MAIN, FEAT]);
     expect(api.folderPaths).toEqual([MAIN]);
   });
 });
@@ -219,7 +227,7 @@ describe("unmanaged folders", () => {
   });
 
   it("keeps user-added folders and the main repository folder", async () => {
-    const { api, git } = setup([MAIN, "/user/dir"], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN, "/user/dir"], [mainEntry, featEntry]);
 
     await vi.advanceTimersByTimeAsync(0);
     expect(api.folderPaths).toEqual([MAIN, "/user/dir", FEAT]);
@@ -242,7 +250,7 @@ describe("drift repair", () => {
   });
 
   it("re-adds a folder the user removed while the worktree still lives", async () => {
-    const { api, git } = setup([MAIN], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry]);
     await vi.advanceTimersByTimeAsync(0);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
 
@@ -252,7 +260,9 @@ describe("drift repair", () => {
 
     await vi.advanceTimersByTimeAsync(2500);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
+    // The first added entry is the startup transition re-applying folder 0.
     expect(api.added).toEqual([
+      { path: MAIN, name: "repo" },
       { path: FEAT, name: "feat-x  ·  agent" },
       { path: FEAT, name: "feat-x  ·  agent" },
     ]);
@@ -270,20 +280,24 @@ describe("failure handling", () => {
   });
 
   it("retries on the next poll when reading the worktree list fails", async () => {
-    const { api, git } = setup([MAIN], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry]);
     git.failOnce();
 
     await vi.advanceTimersByTimeAsync(0);
+    // The added entry is the startup transition re-applying folder 0.
     expect(api.folderPaths).toEqual([MAIN]);
-    expect(api.added).toEqual([]);
+    expect(api.added).toEqual([{ path: MAIN, name: "repo" }]);
 
     await vi.advanceTimersByTimeAsync(2500);
-    expect(api.added).toEqual([{ path: FEAT, name: "feat-x  ·  agent" }]);
+    expect(api.added).toEqual([
+      { path: MAIN, name: "repo" },
+      { path: FEAT, name: "feat-x  ·  agent" },
+    ]);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
   });
 
   it("retries a rejected folder removal on the next poll", async () => {
-    const { api, git } = setup([MAIN], [mainEntry, featEntry]);
+    const { api, git } = await setup([MAIN], [mainEntry, featEntry]);
     await vi.advanceTimersByTimeAsync(0);
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
 
@@ -293,7 +307,27 @@ describe("failure handling", () => {
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
 
     await vi.advanceTimersByTimeAsync(2500);
-    expect(api.removed).toEqual([FEAT]);
+    // MAIN in removed[0] is the startup transition re-applying folder 0.
+    expect(api.removed).toEqual([MAIN, FEAT]);
     expect(api.folderPaths).toEqual([MAIN]);
+  });
+
+  // SPEC 起動時のワークスペース遷移 (遷移に失敗したときは、何もせず通知もしない。同期は次のポーリングで通常どおり動く)。
+  it("keeps folder 0 and syncs on the next poll after a rejected startup transition", async () => {
+    const api = new FakeVscode([MAIN]);
+    api.config.worktreeWorkspaceSync = {};
+    const git = createFakeGit([mainEntry, featEntry]);
+    api.failNextUpdate = true;
+    await startExtension(api, git.exec);
+
+    await vi.advanceTimersByTimeAsync(0);
+    // The transition was rejected (folder 0 was not re-applied), but the
+    // poll still added the worktree: sync keeps working.
+    expect(api.added).toEqual([{ path: FEAT, name: "feat-x  ·  agent" }]);
+    expect(api.folderPaths).toEqual([MAIN, FEAT]);
+
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(git.calls).toHaveLength(2);
+    expect(api.folderPaths).toEqual([MAIN, FEAT]);
   });
 });

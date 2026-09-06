@@ -20,7 +20,7 @@ describe("polling", () => {
     const api = new FakeVscode([MAIN]);
     api.config.worktreeWorkspaceSync = { pollIntervalMs: 100 };
     const git = createFakeGit([mainEntry, featEntry]);
-    startExtension(api, git.exec);
+    await startExtension(api, git.exec);
 
     await vi.advanceTimersByTimeAsync(0);
     expect(git.calls).toHaveLength(1);
@@ -38,7 +38,7 @@ describe("polling", () => {
     const api = new FakeVscode([MAIN]);
     api.config.worktreeWorkspaceSync = { pollIntervalMs: 2500 };
     const git = createFakeGit([mainEntry, featEntry]);
-    startExtension(api, git.exec);
+    await startExtension(api, git.exec);
 
     await vi.advanceTimersByTimeAsync(0);
     expect(git.calls).toHaveLength(1);
@@ -56,7 +56,7 @@ describe("polling", () => {
     const api = new FakeVscode([MAIN]);
     api.config.worktreeWorkspaceSync = { pollIntervalMs: 100 };
     const git = createFakeGit([mainEntry, featEntry]);
-    startExtension(api, git.exec);
+    await startExtension(api, git.exec);
 
     await vi.advanceTimersByTimeAsync(0);
     api.config.worktreeWorkspaceSync.pollIntervalMs = 1000;

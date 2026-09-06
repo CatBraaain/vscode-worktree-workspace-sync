@@ -56,7 +56,11 @@ const api: VscodeLike = {
 };
 
 export function activate(context: vscode.ExtensionContext): void {
-  context.subscriptions.push(startExtension(api, execFile));
+  // startExtension is async only for the startup workspace transition;
+  // activate itself must return immediately.
+  void startExtension(api, execFile).then((handle) => {
+    context.subscriptions.push(handle);
+  });
 }
 
 export function deactivate(): void {}

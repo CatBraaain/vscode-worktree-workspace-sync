@@ -17,7 +17,7 @@ describe("title bar", () => {
   it("writes the folder-0 name to window.title at workspace scope when untitled", async () => {
     const api = new FakeVscode([MAIN]);
     api.config.worktreeWorkspaceSync = {};
-    startExtension(api, createFakeGit([wt(MAIN, { branch: "main" })]).exec);
+    await startExtension(api, createFakeGit([wt(MAIN, { branch: "main" })]).exec);
 
     await vi.advanceTimersByTimeAsync(0);
     expect(api.titleUpdates).toEqual([
@@ -38,7 +38,7 @@ describe("title bar", () => {
   it("does not write window.title for a saved workspace file", async () => {
     const api = new FakeVscode([MAIN], `${MAIN}/my.code-workspace`);
     api.config.worktreeWorkspaceSync = {};
-    startExtension(api, createFakeGit([wt(MAIN, { branch: "main" })]).exec);
+    await startExtension(api, createFakeGit([wt(MAIN, { branch: "main" })]).exec);
 
     await vi.advanceTimersByTimeAsync(2500);
     expect(api.titleUpdates).toEqual([]);
@@ -50,10 +50,14 @@ describe("title bar", () => {
     api.config.worktreeWorkspaceSync = {};
     api.failTitleUpdate = true;
     const git = createFakeGit([wt(MAIN, { branch: "main" }), wt(FEAT, { branch: "feat-x" })]);
-    startExtension(api, git.exec);
+    await startExtension(api, git.exec);
 
     await vi.advanceTimersByTimeAsync(0);
     expect(api.titleUpdates).toHaveLength(1);
-    expect(api.added).toEqual([{ path: FEAT, name: "feat-x  ·  agent" }]);
+    // added[0] is the startup transition re-applying folder 0.
+    expect(api.added).toEqual([
+      { path: MAIN, name: "myrepo" },
+      { path: FEAT, name: "feat-x  ·  agent" },
+    ]);
   });
 });

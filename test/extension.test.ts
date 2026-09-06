@@ -126,8 +126,10 @@ describe("activate wiring", () => {
 
     activate({ subscriptions } as unknown as vscode.ExtensionContext);
 
-    await vi.waitFor(() => expect(state.added).toHaveLength(1));
-    expect(state.added[0]).toEqual({ path: worktree, name: "feat-x" });
+    await vi.waitFor(() => expect(state.added).toHaveLength(2));
+    // added[0] is the startup transition re-applying folder 0 unchanged.
+    expect(state.added[0]).toEqual({ path: repo, name: path.basename(repo) });
+    expect(state.added[1]).toEqual({ path: worktree, name: "feat-x" });
     expect(state.folders.map((folder) => folder.uri.fsPath)).toEqual([repo, worktree]);
     expect(state.titleUpdates).toEqual([
       {
