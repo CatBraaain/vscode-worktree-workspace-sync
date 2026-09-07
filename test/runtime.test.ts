@@ -331,3 +331,49 @@ describe("failure handling", () => {
     expect(api.folderPaths).toEqual([MAIN, FEAT]);
   });
 });
+
+// SPEC 起動時のワークスペース遷移 (準備待ちの間、同期 (ポーリング) は開始しない)。
+describe("polling start after readiness wait", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts polling only after the folder-0 repository is discovered", async () => {
+    const api = new FakeVscode([MAIN]);
+    api.config.worktreeWorkspaceSync = {};
+    const git = createFakeGit([mainEntry, featEntry]);
+    api.gitApi.closeAll();
+
+    void startExtension(api, git.exec);
+    await vi.advanceTimersByTimeAsync(2900);
+    expect(git.calls).toHaveLength(0);
+
+    api.gitApi.openRepository(MAIN);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(git.calls).toHaveLength(1);
+    expect(api.folderPaths).toEqual([MAIN, FEAT]);
+  });
+
+  it("starts polling when the readiness wait reaches the 3s cap", async () => {
+    const api = new FakeVscode([MAIN]);
+    api.config.worktreeWorkspaceSync = {};
+    const git = createFakeGit([mainEntry, featEntry]);
+    api.gitApi.closeAll();
+
+    void startExtension(api, git.exec);
+    await vi.advanceTimersByTimeAsync(2900);
+    expect(git.calls).toHaveLength(0);
+
+    // The cap timer fires at 3s; the extra headroom absorbs timer/microtask
+    // scheduling jitter under fake timers.
+    await vi.advanceTimersByTimeAsync(200);
+    expect(git.calls).toHaveLength(1);
+    expect(api.added).toEqual([
+      { path: MAIN, name: "repo" },
+      { path: FEAT, name: "feat-x  ·  agent" },
+    ]);
+  });
+});

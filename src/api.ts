@@ -32,6 +32,26 @@ export interface TabLike {
   readonly input?: TabInputLike;
 }
 
+export interface GitRepositoryLike {
+  readonly root: UriLike;
+}
+
+export interface GitApiLike {
+  readonly repositories: readonly GitRepositoryLike[];
+  onDidOpenRepository(listener: (repository: GitRepositoryLike) => void): DisposableLike;
+}
+
+/** Shape of the vscode.git extension exports. */
+export interface GitExtensionExportsLike {
+  getAPI(version: 1): GitApiLike;
+}
+
+export interface ExtensionLike<TExports = unknown> {
+  readonly isActive: boolean;
+  readonly exports: TExports;
+  activate(): PromiseLike<TExports>;
+}
+
 export interface VscodeLike {
   readonly workspace: {
     readonly workspaceFolders: readonly WorkspaceFolderLike[] | undefined;
@@ -51,4 +71,7 @@ export interface VscodeLike {
     };
   };
   readonly configurationTarget: { readonly Workspace: unknown };
+  readonly extensions: {
+    getExtension<TExports = unknown>(extensionId: string): ExtensionLike<TExports> | undefined;
+  };
 }

@@ -6,6 +6,11 @@
 import path from "node:path";
 import type {
   ConfigurationLike,
+  DisposableLike,
+  ExtensionLike,
+  GitApiLike,
+  GitExtensionExportsLike,
+  GitRepositoryLike,
   TabLike,
   UriLike,
   VscodeLike,
@@ -28,6 +33,52 @@ export function savedWorkspace(fsPath: string): UriLike {
 
 interface FakeTab extends TabLike {
   readonly uriPath: string;
+}
+
+export class FakeExtension<TExports> implements ExtensionLike<TExports> {
+  isActive = false;
+  activateCalls = 0;
+  /** When set, activate() settles only after this promise does. */
+  activateGate: PromiseLike<void> | undefined;
+
+  constructor(
+    readonly exports: TExports,
+    private readonly options: { rejectActivation?: boolean } = {},
+  ) {}
+
+  activate(): PromiseLike<TExports> {
+    this.activateCalls++;
+    return (this.activateGate ? Promise.resolve(this.activateGate) : Promise.resolve()).then(() => {
+      if (this.options.rejectActivation) {
+        throw new Error("extension activation failed");
+      }
+      this.isActive = true;
+      return this.exports;
+    });
+  }
+}
+
+export class FakeGitApi implements GitApiLike {
+  readonly repositories: GitRepositoryLike[] = [];
+  private readonly openListeners = new Set<(repository: GitRepositoryLike) => void>();
+
+  onDidOpenRepository(listener: (repository: GitRepositoryLike) => void): DisposableLike {
+    this.openListeners.add(listener);
+    return { dispose: () => this.openListeners.delete(listener) };
+  }
+
+  openRepository(fsPath: string): void {
+    const repository: GitRepositoryLike = { root: { scheme: "file", fsPath } };
+    this.repositories.push(repository);
+    // Iterating the Set directly is safe against removals mid-loop.
+    for (const listener of this.openListeners) {
+      listener(repository);
+    }
+  }
+
+  closeAll(): void {
+    this.repositories.length = 0;
+  }
 }
 
 // Like VscodeLike["workspace"] but with live mutable state so the fake can
@@ -63,6 +114,27 @@ export class FakeVscode implements VscodeLike {
 
   private readonly tabs: FakeTab[] = [];
   private readonly listeners = new Set<() => void>();
+
+  /** Simulates GitLens being installed; undefined = not installed. */
+  gitlens: FakeExtension<unknown> | undefined;
+  readonly gitApi = new FakeGitApi();
+  private readonly gitExtension = new FakeExtension<GitExtensionExportsLike>({
+    getAPI: () => this.gitApi,
+  });
+
+  readonly extensions: VscodeLike["extensions"] = {
+    getExtension: <T>(extensionId: string) => {
+      if (extensionId === "eamodio.gitlens") {
+        return this.gitlens as unknown as ExtensionLike<T> | undefined;
+      }
+      if (extensionId === "vscode.git") {
+        // The built-in git extension is always active in VS Code.
+        this.gitExtension.isActive = true;
+        return this.gitExtension as unknown as ExtensionLike<T>;
+      }
+      return undefined;
+    },
+  };
 
   // The exposed workspace/window objects hold live references: the folder
   // and tab arrays are mutated in place, so no getters are needed.
@@ -124,6 +196,10 @@ export class FakeVscode implements VscodeLike {
       })),
     );
     this.workspace.workspaceFile = workspaceFile;
+    // Mirror VS Code having discovered a repository per open folder.
+    for (const p of folderPaths ?? []) {
+      this.gitApi.openRepository(p);
+    }
   }
 
   get folderPaths(): string[] {

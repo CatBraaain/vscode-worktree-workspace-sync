@@ -9,7 +9,6 @@ import * as vscode from "vscode";
 import type { VscodeLike } from "./api";
 import type { ExecFile } from "./porcelain";
 import { startExtension } from "./runtime";
-
 const execFileAsync = promisify(execFileCallback);
 
 const execFile: ExecFile = async (file, args, options) => {
@@ -53,6 +52,18 @@ const api: VscodeLike = {
     },
   },
   configurationTarget: vscode.ConfigurationTarget,
+  extensions: {
+    getExtension: <T>(extensionId: string) => {
+      const extension = vscode.extensions.getExtension<T>(extensionId);
+      return extension
+        ? {
+            isActive: extension.isActive,
+            activate: () => extension.activate(),
+            exports: extension.exports,
+          }
+        : undefined;
+    },
+  },
 };
 
 export function activate(context: vscode.ExtensionContext): void {
