@@ -5,7 +5,6 @@
  */
 
 import path from "node:path";
-import { getGitApi } from "./api";
 import type { VscodeLike } from "./api";
 import {
   computeSyncDiff,
@@ -16,9 +15,6 @@ import {
 } from "./core";
 import { updateFoldersAndWait } from "./folders";
 import { listWorktrees, type ExecFile, type WorktreeEntry } from "./porcelain";
-
-/** SPEC: a missing SCM registration is repaired only after this grace period. */
-export const SCM_REPAIR_GRACE_MS = 15000;
 
 interface SyncSettings {
   enabled: boolean;
@@ -36,8 +32,6 @@ export class AutoSyncEngine {
   private readonly deps: EngineDeps;
   /** Folder paths this extension added or adopted as sync targets. */
   private readonly managed = new Set<string>();
-  /** Sync-target folders missing from SCM → ms timestamp of first sighting. */
-  private readonly missingSince = new Map<string, number>();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private running = false;
   private busy = false;
@@ -120,13 +114,13 @@ export class AutoSyncEngine {
     }
 
     const { toAdd, toRemove } = computeSyncDiff(targetPaths, folderPaths, this.managed);
-    if (toAdd.length > 0 || toRemove.length > 0) {
-      const addSet = new Set(toAdd);
-      const additions = targetEntries.filter((entry) => addSet.has(path.resolve(entry.path)));
-      await this.applyRemovals(toRemove);
-      await this.applyAdditions(additions);
+    if (toAdd.length === 0 && toRemove.length === 0) {
+      return;
     }
-    await this.repairScmRegistration(targetEntries, folderPaths);
+    const addSet = new Set(toAdd);
+    const additions = targetEntries.filter((entry) => addSet.has(path.resolve(entry.path)));
+    await this.applyRemovals(toRemove);
+    await this.applyAdditions(additions);
   }
 
   private async applyRemovals(removals: readonly string[]): Promise<void> {
@@ -160,75 +154,6 @@ export class AutoSyncEngine {
       this.managed.add(path.resolve(entry.path));
     }
     await updateFoldersAndWait(this.deps.vscode, start, 0, ...folders);
-  }
-
-  /**
-   * Repair one synced worktree folder whose repository is missing from
-   * the built-in git extension: after a grace period, remove and re-add
-   * the folder so the repository gets re-opened (spec: one folder per
-   * poll, repeat while it stays missing). The root check is an exact
-   * match on purpose: the main repository's root contains its worktree
-   * folders, so a "covers" match would hide the missing registration.
-   * Folder 0 is never touched (removing it restarts the extension host).
-   */
-  private async repairScmRegistration(
-    targetEntries: readonly WorktreeEntry[],
-    folderPaths: readonly string[],
-  ): Promise<void> {
-    const gitApi = await getGitApi(this.deps.vscode);
-    // Without the API the open state is unknown; spec says do not repair.
-    if (!gitApi) {
-      return;
-    }
-    const openedRoots = new Set(
-      gitApi.repositories.map((repository) => path.resolve(repository.root.fsPath)),
-    );
-    const targetSet = new Set(targetEntries.map((entry) => path.resolve(entry.path)));
-    const now = Date.now();
-    for (const folderPath of folderPaths.slice(1)) {
-      if (!targetSet.has(folderPath)) {
-        continue;
-      }
-      const isMissing = !openedRoots.has(folderPath);
-      if (!isMissing) {
-        this.missingSince.delete(folderPath);
-        continue;
-      }
-      const firstSeenAt = this.missingSince.get(folderPath) ?? now;
-      this.missingSince.set(folderPath, firstSeenAt);
-      if (now - firstSeenAt < SCM_REPAIR_GRACE_MS) {
-        continue;
-      }
-      this.missingSince.delete(folderPath);
-      await this.removeAndReadd(folderPath, targetEntries);
-      return;
-    }
-  }
-
-  /**
-   * Re-open a folder's repository by removing and re-adding the folder.
-   * The removal closes the tabs under it; the folder comes back at the
-   * end of the list with the default name. A rejected removal stays
-   * managed and is retried on the next poll.
-   */
-  private async removeAndReadd(
-    folderPath: string,
-    targetEntries: readonly WorktreeEntry[],
-  ): Promise<void> {
-    const index = this.indexOfFolder(folderPath);
-    if (index <= 0) {
-      return;
-    }
-    const entry = targetEntries.find((e) => path.resolve(e.path) === folderPath);
-    if (!entry) {
-      return;
-    }
-    await this.closeTabsUnder(folderPath);
-    await updateFoldersAndWait(this.deps.vscode, index, 1);
-    if (this.indexOfFolder(folderPath) !== -1) {
-      return;
-    }
-    await this.applyAdditions([entry]);
   }
 
   private indexOfFolder(folderPath: string): number {

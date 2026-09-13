@@ -68,10 +68,6 @@ export class FakeGitApi implements GitApiLike {
   }
 
   openRepository(fsPath: string): void {
-    // Mirrors the built-in git extension: an already-open root is a no-op.
-    if (this.repositories.some((repository) => repository.root.fsPath === fsPath)) {
-      return;
-    }
     const repository: GitRepositoryLike = { root: { scheme: "file", fsPath } };
     this.repositories.push(repository);
     // Iterating the Set directly is safe against removals mid-loop.
@@ -121,10 +117,6 @@ export class FakeVscode implements VscodeLike {
 
   /** Simulates GitLens being installed; undefined = not installed. */
   gitlens: FakeExtension<unknown> | undefined;
-  /** When false, getExtension reports vscode.git as not installed. */
-  gitExtensionInstalled = true;
-  /** Mirrors the built-in git extension opening a repository per added folder. */
-  mirrorGitRepos = true;
   readonly gitApi = new FakeGitApi();
   private readonly gitExtension = new FakeExtension<GitExtensionExportsLike>({
     getAPI: () => this.gitApi,
@@ -136,9 +128,6 @@ export class FakeVscode implements VscodeLike {
         return this.gitlens as unknown as ExtensionLike<T> | undefined;
       }
       if (extensionId === "vscode.git") {
-        if (!this.gitExtensionInstalled) {
-          return undefined;
-        }
         // The built-in git extension is always active in VS Code.
         this.gitExtension.isActive = true;
         return this.gitExtension as unknown as ExtensionLike<T>;
@@ -174,13 +163,6 @@ export class FakeVscode implements VscodeLike {
       this.removed.push(...removed.map((folder) => folder.uri.fsPath));
       for (const listener of this.listeners) {
         listener();
-      }
-      // Mirror the built-in git extension: it opens a repository for each
-      // added workspace folder.
-      if (this.mirrorGitRepos) {
-        for (const folder of toAdd) {
-          this.gitApi.openRepository(folder.uri.fsPath);
-        }
       }
       return true;
     },

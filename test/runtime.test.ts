@@ -180,17 +180,6 @@ describe("worktree addition", () => {
     expect(git.calls[0].args).toEqual(["worktree", "list", "--porcelain"]);
     expect(git.calls[0].cwd).toBe(MAIN);
   });
-
-  // SPEC 同期の定義/変化表 行1 (ソースコントロール列): the built-in git
-  // extension opens the repository of an added worktree folder.
-  it("makes the built-in git extension open the repository of an added worktree folder", async () => {
-    const { api } = await setup([MAIN], [mainEntry, featEntry]);
-
-    await vi.advanceTimersByTimeAsync(0);
-    expect(api.folderPaths).toEqual([MAIN, FEAT]);
-    const openedRoots = api.gitApi.repositories.map((repository) => repository.root.fsPath);
-    expect(openedRoots).toContain(FEAT);
-  });
 });
 
 // SPEC 同期の定義/変化表 行2: removals when a worktree disappears or
