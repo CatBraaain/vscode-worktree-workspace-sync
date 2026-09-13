@@ -12,7 +12,8 @@
  */
 
 import path from "node:path";
-import type { GitApiLike, GitExtensionExportsLike, VscodeLike } from "./api";
+import { getGitApi } from "./api";
+import type { GitApiLike, VscodeLike } from "./api";
 import { isUnderOrEqual } from "./core";
 import { updateFoldersAndWait } from "./folders";
 
@@ -20,7 +21,6 @@ import { updateFoldersAndWait } from "./folders";
 export const READINESS_TIMEOUT_MS = 3000;
 
 const GITLENS_EXTENSION_ID = "eamodio.gitlens";
-const BUILTIN_GIT_EXTENSION_ID = "vscode.git";
 
 export async function promoteToUntitledWorkspace(vscode: VscodeLike): Promise<void> {
   const folders = vscode.workspace.workspaceFolders;
@@ -72,11 +72,7 @@ async function waitForGitReadiness(vscode: VscodeLike, mainRepoPath: string): Pr
   // GitLens first: its activation may take a moment, and the repository
   // wait below should not start before it is active.
   await activateWithin<unknown>(vscode, GITLENS_EXTENSION_ID);
-  const gitExports = await activateWithin<GitExtensionExportsLike>(
-    vscode,
-    BUILTIN_GIT_EXTENSION_ID,
-  );
-  const gitApi = gitExports?.getAPI(1);
+  const gitApi = await getGitApi(vscode);
   if (!gitApi || hasRepositoryFor(gitApi, mainRepoPath)) {
     return;
   }

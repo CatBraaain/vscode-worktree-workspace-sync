@@ -41,6 +41,28 @@ describe("activation gate", () => {
   });
 });
 
+// SPEC 対象と適用範囲/停止: disposing the handle stops polling.
+describe("polling stop", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("stops polling when the extension handle is disposed", async () => {
+    const { handle, git } = await setup([MAIN], [mainEntry, featEntry]);
+
+    await vi.advanceTimersByTimeAsync(0);
+    const callsBefore = git.calls.length;
+    expect(callsBefore).toBeGreaterThan(0);
+
+    handle.dispose();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(git.calls.length).toBe(callsBefore);
+  });
+});
+
 // SPEC 対象と適用範囲/主リポジトリ: workspace folder 0 is the main
 // repository, regardless of how many folders are open.
 describe("main repository selection", () => {
@@ -157,6 +179,17 @@ describe("worktree addition", () => {
     expect(api.folderPaths).toEqual([MAIN, "/repo/wt/topic", "/repo/wt/det", FEAT]);
     expect(git.calls[0].args).toEqual(["worktree", "list", "--porcelain"]);
     expect(git.calls[0].cwd).toBe(MAIN);
+  });
+
+  // SPEC 同期の定義/変化表 行1 (ソースコントロール列): the built-in git
+  // extension opens the repository of an added worktree folder.
+  it("makes the built-in git extension open the repository of an added worktree folder", async () => {
+    const { api } = await setup([MAIN], [mainEntry, featEntry]);
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.folderPaths).toEqual([MAIN, FEAT]);
+    const openedRoots = api.gitApi.repositories.map((repository) => repository.root.fsPath);
+    expect(openedRoots).toContain(FEAT);
   });
 });
 

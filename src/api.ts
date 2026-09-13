@@ -75,3 +75,25 @@ export interface VscodeLike {
     getExtension<TExports = unknown>(extensionId: string): ExtensionLike<TExports> | undefined;
   };
 }
+
+export const BUILTIN_GIT_EXTENSION_ID = "vscode.git";
+
+/**
+ * Activate the built-in git extension and return its API. Resolves with
+ * undefined when the extension is not installed, failed to activate, or
+ * exposes no API.
+ */
+export async function getGitApi(vscode: VscodeLike): Promise<GitApiLike | undefined> {
+  const extension =
+    vscode.extensions.getExtension<GitExtensionExportsLike>(BUILTIN_GIT_EXTENSION_ID);
+  if (!extension) {
+    return undefined;
+  }
+  if (!extension.isActive) {
+    await Promise.resolve(extension.activate()).catch(() => {});
+  }
+  if (!extension.isActive) {
+    return undefined;
+  }
+  return extension.exports?.getAPI(1);
+}
